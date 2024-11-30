@@ -68,105 +68,105 @@
 
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
   <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-      import {
-          getFirestore,
-          collection,
-          addDoc,
-          serverTimestamp,
-          query,
-          orderBy,
-          onSnapshot,
-      } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      serverTimestamp,
+      query,
+      orderBy,
+      onSnapshot,
+    } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
-      // Firebase Configuration
-      const firebaseConfig = {
-          apiKey: "AIzaSyCVfd5rIMDBS4EM-nRQJSLxzhYb_FBgPKc",
-          authDomain: "chatchatchat-f520c.firebaseapp.com",
-          projectId: "chatchatchat-f520c",
-          storageBucket: "chatchatchat-f520c.firebasestorage.app",
-          messagingSenderId: "830877777877",
-          appId: "1:830877777877:web:1434161cdb0211060b875c"
-      };
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCVfd5rIMDBS4EM-nRQJSLxzhYb_FBgPKc",
+      authDomain: "chatchatchat-f520c.firebaseapp.com",
+      projectId: "chatchatchat-f520c",
+      storageBucket: "chatchatchat-f520c.firebasestorage.app",
+      messagingSenderId: "830877777877",
+      appId: "1:830877777877:web:1434161cdb0211060b875c"
+    };
 
-      // Initialize Firebase
-      const app = initializeApp(firebaseConfig);
-      const db = getFirestore(app);
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-      // DOM Elements
-      const sendButton = document.getElementById("send");
-      const nameInput = document.getElementById("name");
-      const textInput = document.getElementById("text");
-      const output = document.getElementById("output");
-      const chatContainer = document.querySelector(".line__contents");
+    // DOM Elements
+    const sendButton = document.getElementById("send");
+    const nameInput = document.getElementById("name");
+    const textInput = document.getElementById("text");
+    const output = document.getElementById("output");
+    const chatContainer = document.querySelector(".line__contents");
 
-      // Utility: Escape HTML to prevent injection
-      function escapeHTML(str) {
-        const div = document.createElement("div");
-        div.appendChild(document.createTextNode(str));
-        return div.innerHTML;
+    // Utility: Escape HTML to prevent injection
+    function escapeHTML(str) {
+      const div = document.createElement("div");
+      div.appendChild(document.createTextNode(str));
+      return div.innerHTML;
+    }
+
+    // Convert Firestore timestamp to readable format
+    function convertTimestampToDatetime(timestamp) {
+      const _d = timestamp ? new Date(timestamp * 1000) : new Date();
+      const Y = _d.getFullYear();
+      const m = (_d.getMonth() + 1).toString().padStart(2, "0");
+      const d = _d.getDate().toString().padStart(2, "0");
+      const H = _d.getHours().toString().padStart(2, "0");
+      const i = _d.getMinutes().toString().padStart(2, "0");
+      const s = _d.getSeconds().toString().padStart(2, "0");
+      return `${Y}/${m}/${d} ${H}:${i}:${s}`;
+    }
+
+    // Add message to Firestore
+    sendButton.addEventListener("click", async () => {
+      const name = nameInput.value.trim();
+      const text = textInput.value.trim();
+
+      if (!name || !text) {
+        alert("お名前とコメントを入力してください。");
+        return;
       }
 
-      // Convert Firestore timestamp to readable format
-      function convertTimestampToDatetime(timestamp) {
-        const _d = timestamp ? new Date(timestamp * 1000) : new Date();
-        const Y = _d.getFullYear();
-        const m = (_d.getMonth() + 1).toString().padStart(2, "0");
-        const d = _d.getDate().toString().padStart(2, "0");
-        const H = _d.getHours().toString().padStart(2, "0");
-        const i = _d.getMinutes().toString().padStart(2, "0");
-        const s = _d.getSeconds().toString().padStart(2, "0");
-        return `${Y}/${m}/${d} ${H}:${i}:${s}`;
+      try {
+        await addDoc(collection(db, "chat"), {
+          name: escapeHTML(name),
+          text: escapeHTML(text),
+          time: serverTimestamp(),
+        });
+        nameInput.value = "";
+        textInput.value = "";
+      } catch (error) {
+        console.error("メッセージ送信エラー:", error);
+        alert("メッセージの送信に失敗しました。もう一度お試しください。");
       }
+    });
 
-      // Add message to Firestore
-      sendButton.addEventListener("click", async () => {
-        const name = nameInput.value.trim();
-        const text = textInput.value.trim();
+    // Real-time listener for Firestore changes
+    const q = query(collection(db, "chat"), orderBy("time", "asc"));
+    onSnapshot(q, (snapshot) => {
+      output.innerHTML = ""; // Clear existing messages
 
-        if (!name || !text) {
-          alert("お名前とコメントを入力してください。");
-          return;
-        }
+      snapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        const li = document.createElement("li");
+        li.className = "line__left";
 
-        try {
-          await addDoc(collection(db, "chat"), {
-            name: escapeHTML(name),
-            text: escapeHTML(text),
-            time: serverTimestamp(),
-          });
-          nameInput.value = "";
-          textInput.value = "";
-        } catch (error) {
-          console.error("メッセージ送信エラー:", error);
-          alert("メッセージの送信に失敗しました。もう一度お試しください。");
-        }
-      });
+        li.innerHTML = `
+      <figure><div><span>${escapeHTML(data.name)}</span></div></figure>
+      <div class="text_area">
+        <p class="line_name">${escapeHTML(data.name)}</p>
+        <p class="line_text">${escapeHTML(data.text)}</p>
+        <span class="line_date">${convertTimestampToDatetime(data.time?.seconds || Date.now() / 1000)}</span>
+      </div>
+    `;
+          output.appendChild(li);
+        });
 
-      // Real-time listener for Firestore changes
-      const q = query(collection(db, "chat"), orderBy("time", "asc"));
-      onSnapshot(q, (snapshot) => {
-        output.innerHTML = ""; // Clear existing messages
-
-        snapshot.docs.forEach((doc) => {
-          const data = doc.data();
-          const li = document.createElement("li");
-          li.className = "line__left";
-
-          li.innerHTML = `
-        <figure><div><span>${escapeHTML(data.name)}</span></div></figure>
-        <div class="text_area">
-          <p class="line_name">${escapeHTML(data.name)}</p>
-          <p class="line_text">${escapeHTML(data.text)}</p>
-          <span class="line_date">${convertTimestampToDatetime(data.time?.seconds || Date.now() / 1000)}</span>
-        </div>
-      `;
-            output.appendChild(li);
-          });
-
-          // Auto-scroll to the bottom of the chat container
-          chatContainer.scrollTop = chatContainer.scrollHeight;
-      });
+        // Auto-scroll to the bottom of the chat container
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    });
   </script>
 
 </body>
